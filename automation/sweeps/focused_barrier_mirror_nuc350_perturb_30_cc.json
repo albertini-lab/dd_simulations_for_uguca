@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "sweep_name": "focused_barrier_mirror_nuc350_perturb_30_cc",
+    "mode": "all",
+    "max_total_runs": 30,
+    "confirm_before_run": true,
+    "quiet_solver_output": true,
+    "ranking_mode": "translation_aligned"
+  },
+  "paths": {
+    "work_dir": "/Users/joshmcneely/uguca/build/simulations",
+    "solver_exec": "./dd_earthquake",
+    "template_input": "/Users/joshmcneely/uguca/simulations/input_files/local_baseline_compare_nu019.in",
+    "output_root": "./sweep_outputs/focused_barrier_mirror_nuc350_perturb_30_cc",
+    "plot_script": "./automation/plotting/Plot_BaselineExp_Spacetime.py",
+    "rmse_script": "./automation/ranking/compute_baseline_vs_exp_rmse.py",
+    "rmse_script_translation_aligned": "./automation/ranking/compute_baseline_vs_exp_rmse_translation_aligned.py"
+  },
+  "analysis": {
+    "enable_plot": true,
+    "enable_rmse": true,
+    "enable_translated_plot": false,
+    "exp_restart_dir": "/Users/joshmcneely/introsims/simulation_outputs/interface-restart",
+    "roi_min": 0.0,
+    "roi_max": 6.0,
+    "translation_shift_min_m": -0.6,
+    "translation_shift_max_m": 0.6,
+    "translation_shift_step_m": 0.001
+  },
+  "vary": [
+    {
+      "name": "asp_fct",
+      "spacing": "linear",
+      "mode": "absolute",
+      "min": 1.47,
+      "max": 1.63,
+      "count": 5
+    },
+    {
+      "name": "asp_size",
+      "spacing": "linear",
+      "mode": "absolute",
+      "min": 0.46,
+      "max": 0.54,
+      "count": 3
+    },
+    {
+      "name": "Dc",
+      "spacing": "linear",
+      "mode": "absolute",
+      "min": 1.6e-06,
+      "max": 1.68e-06,
+      "count": 2
+    }
+  ],
+  "fixed": {
+    "asperity": "True",
+    "asp_center": 5.88,
+    "nuc_center": 3.5,
+    "nuc_dtau": 1421818.18181,
+    "nuc_size": 0.06,
+    "nuc_time": 0.0025
+  }
+}

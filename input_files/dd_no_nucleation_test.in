@@ -1,0 +1,53 @@
+# --- Data-Driven Test: No Nucleation Parameters ---
+# Testing if DD can discover nucleation from ground truth data
+
+# Simulation name
+sim_name = dd_no_nucleation_test
+
+# --- Geometry and Discretization ---
+length = 1.
+nb_elements = 1024
+
+# --- Loading ---
+shear_load = 2e6
+normal_load = 1e6
+
+# --- Material Properties (Same as ground truth) ---
+material top [
+  E = 7e9  
+  nu = 0.33
+  rho = 2000
+]
+material bot [
+  E = 5e9
+  nu = 0.25
+  rho = 1200
+]
+
+# --- Interface Properties (Perturbed Values) ---
+interface cohesion [
+  tauc = 3.15e6 # Perturbed from reference value of 3.5e6
+  dc = 2.2e-5   # Perturbed from reference value of 2e-5
+]
+
+# --- NO NUCLEATION - Set a0 = 0 for intact interface ---
+a0 = 0  # No initial nucleation - interface starts completely intact
+
+# --- Time Integration ---
+duration = 2.6e-4
+tsf = 0.2
+data_driven_update_interval = 1718 # Update every step
+
+# --- Output ---
+dump_fields = top_disp,bot_disp
+nb_dumps = 1  # Multiple dumps to see evolution
+
+# --- Data-Driven Mode ---
+ground_truth_solution_generation = false
+enable_data_driven_mode = true
+
+# --- Data-Driven Parameters ---
+ground_truth_data_path = noisy_gt_data_input
+ground_truth_data_name = noisy_gt_data_input
+w_factor_constant = 1e-2  # Strong coupling to learn from data
+noise_stddev_sim = 1e-6   # Match the noise we added

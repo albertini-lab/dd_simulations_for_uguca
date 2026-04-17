@@ -1,0 +1,74 @@
+# --- Input File for Data-Driven Simulation with Deviated Parameters, Noisy Data, and Dynamic Nucleation ---
+
+# Simulation name (used for regular output of this run)
+sim_name = time_int_opt_deviated_dd_noisy_dynamic_nuc
+
+# --- Geometry and Discretization ---
+length = 1.
+nb_elements = 1024
+
+# --- Loading ---
+shear_load = 2e6
+normal_load = 1e6
+
+# --- Material Properties (Perturbed Values) ---
+material top [
+  E = 8.4e9  # Perturbed from reference value of 7e9
+  nu = 0.33
+  rho = 2000
+]
+material bot [
+  E = 4.0e9  # Perturbed from reference value of 5e9
+  nu = 0.25
+  rho = 1200
+]
+
+# --- Interface Properties (Perturbed Values) ---
+interface cohesion [
+  tauc = 3.15e6 # Perturbed from reference value of 3.5e6
+  dc = 2.2e-5   # Perturbed from reference value of 2e-5
+]
+
+# --- Nucleation: Dynamic Nucleation Parameters ---
+enable_dynamic_nucleation = true
+
+# Initial notch (for reference, can be small or zero if only dynamic nucleation is desired)
+a0 = 0
+
+# Dynamic nucleation parameters
+dynamic_nuc_r = 0.04           # Final radius of nucleation zone (meters)
+dynamic_nuc_tstart = 5.0e-5    # Time at which nucleation starts (seconds)
+dynamic_nuc_tend = 1.5e-4      # Time at which nucleation ends (seconds)
+dynamic_nuc_x_center = 0.0     # Center offset from mesh center (meters)
+dynamic_nuc_tauc = 1.0e6       # Target cohesion in nucleated region (Pa)
+dynamic_nuc_sym = true         # Symmetric nucleation about center
+dynamic_nuc_xc0 = 0.005        # Transition width (meters)
+dynamic_nuc_unilateral_growth = false
+
+# --- Time Integration ---
+duration = 2.6e-4
+tsf = 0.2
+data_driven_update_interval = 1
+
+# --- Output ---
+dump_fields = cohesion,top_disp,bot_disp,tau_max
+nb_dumps = 1
+
+# --- Restart Configuration ---
+restart_name = time_int_opt_deviated_dd_noisy_dynamic_nuc
+nb_restarts = 1
+
+# --- Ground Truth Mode ---
+ground_truth_solution_generation = false
+enable_data_driven_mode = true
+
+# --- Parameters for Data-Driven Mode ---
+# Path to the directory containing the .info file
+ground_truth_data_path = noisy_gt_data_input
+
+# Base name for the ground truth data files
+ground_truth_data_name = noisy_gt_data_input
+
+# Data-driven tuning parameters
+w_factor_constant = 1e-2
+noise_stddev_sim = 1e-6 # Model's assumption of noise in data

@@ -1,0 +1,60 @@
+simulation_name = local_debug_run
+dump_folder     = ./results_dd_mcklaskey_debug_direct/
+
+# geometry
+length      = 6.0
+nb_elements = 2048
+free_surface = False
+
+# time
+duration = 0.015
+time_step_factor = 0.1
+nb_predictor_corrector = 2
+
+# material
+E   = 46000000000.0
+nu  = 0.25
+rho = 2670.0
+
+# load
+shear_load  = 5800000.0
+normal_load = -10000000.0
+
+# nucleation
+nuc_center    = 0.65
+nuc_size      = 0.1
+nuc_time      = 0.0075
+nuc_dtau      = 2000000.0
+
+# asperity
+asperity     = True
+asp_center = 1.15
+asp_fct    = 1.5
+asp_size   = 0.4
+box_car_shape = False
+
+# output
+dump_interval = 1e-06
+dump_fields = top_disp,top_velo
+nb_dumps = 100000
+nb_restarts = 1
+
+
+# Data-Driven (ENABLED for local test)
+enable_data_driven_mode = True
+w_factor_constant = 1e-4
+noise_stddev_sim = 7.95e-8
+ground_truth_data_path = /Users/joshmcneely/introsims/experimental_data_processed/
+ground_truth_data_name = mcklaskey_debug_direct
+data_driven_update_interval = 1
+
+# interface law
+
+Law     = RateAndState
+a       = 0.011
+b       = 0.014
+Dc      = 1.6e-06
+V0      = 1e-06
+f0      = 0.6
+V_init  = 1e-12
+evolution_law = Slip

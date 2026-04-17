@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "sweep_name": "single_param_asp_size_nuc0955_30",
+    "mode": "all",
+    "max_total_runs": 30,
+    "confirm_before_run": true,
+    "quiet_solver_output": true
+  },
+  "paths": {
+    "work_dir": "/Users/joshmcneely/uguca/build/simulations",
+    "solver_exec": "./dd_earthquake",
+    "template_input": "/Users/joshmcneely/uguca/simulations/input_files/local_baseline_compare_nu019.in",
+    "output_root": "./sweep_outputs/single_param_asp_size_nuc0955_30",
+    "plot_script": "./automation/plotting/Plot_BaselineExp_Spacetime.py",
+    "rmse_script": "./automation/ranking/compute_baseline_vs_exp_rmse.py"
+  },
+  "analysis": {
+    "enable_plot": true,
+    "enable_rmse": true,
+    "exp_restart_dir": "/Users/joshmcneely/introsims/simulation_outputs/interface-restart",
+    "roi_min": 0.0,
+    "roi_max": 3.05
+  },
+  "vary": [
+    {
+      "name": "asp_size",
+      "spacing": "linear",
+      "mode": "absolute",
+      "min": 0.1,
+      "max": 0.8,
+      "count": 30
+    }
+  ],
+  "fixed": {
+    "asperity": "True",
+    "Dc": 1.6e-06,
+    "asp_center": 1.3,
+    "asp_fct": 1.8,
+    "nuc_dtau": 1421818.18181,
+    "nuc_center": 0.955,
+    "nuc_size": 0.06
+  }
+}

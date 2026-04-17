@@ -1,0 +1,85 @@
+# --- Input File for Dynamic Nucleation Ground Truth Generation ---
+# Generates ground truth data for data-driven dynamic nucleation studies
+# Reference simulation with true material properties
+
+# Simulation name
+sim_name = dynamic_nucleation_gt_data
+
+# --- Geometry and Discretization ---
+length = 1.
+nb_elements = 1024
+
+# --- Loading ---
+shear_load = 2e6
+normal_load = 1e6
+
+# --- Material Properties (Reference/True Values) ---
+material top [
+  E = 7e9
+  nu = 0.33
+  rho = 2000
+]
+material bot [
+  E = 5e9
+  nu = 0.25
+  rho = 1200
+]
+
+# --- Interface Properties (Reference Values) ---
+interface cohesion [
+  tauc = 3.5e6
+  dc = 2e-5
+]
+
+# --- Initial Notch ---
+a0 = 0
+
+# --- Time Integration ---
+duration = 2.6e-4
+tsf = 0.2
+# step_advances = 1
+
+# --- Output ---
+dump_fields = top_disp,bot_disp,tau_max,cohesion
+nb_dumps = 1
+
+# --- Restart Configuration ---
+restart_name = dynamic_nucleation_gt_data
+nb_restarts = 1
+
+# --- GROUND TRUTH GENERATION MODE ---
+ground_truth_solution_generation = true
+enable_data_driven_mode = false
+
+# --- DYNAMIC NUCLEATION CONFIGURATION ---
+enable_dynamic_nucleation = true
+
+# Reference dynamic nucleation parameters
+dynamic_nuc_r = 0.08               # Nucleation radius [m]
+dynamic_nuc_tstart = 0.5e-4        # Start time for nucleation [s]
+dynamic_nuc_tend = 1.2e-4          # End time for nucleation [s]
+dynamic_nuc_x_center = 0.01        # X-offset from crack center [m]
+dynamic_nuc_tauc = 1.5e6           # Reduced cohesion in nucleation zone [Pa]
+dynamic_nuc_sym = true             # Symmetric nucleation
+dynamic_nuc_xc0 = 0.03             # Transition zone width [m]
+dynamic_nuc_unilateral_growth = false
+
+# --- PURPOSE ---
+# This input file generates reference ground truth data that includes:
+# 1. Dynamic nucleation effects on interface behavior
+# 2. Displacement evolution during nucleation process
+# 3. Stress redistribution patterns
+# 4. Complete time-series data for data-driven learning
+
+# --- GENERATED DATA ---
+# The simulation produces displacement data that captures:
+# - Pre-nucleation quasi-static behavior
+# - Nucleation initiation and growth phase
+# - Post-nucleation dynamic crack propagation
+# - Interface stress evolution during nucleation
+
+# --- USAGE ---
+# Use this data as input for:
+# - dd_dynamic_nucleation.in (data-driven learning)
+# - Validation of nucleation detection algorithms
+# - Benchmarking of different nucleation models

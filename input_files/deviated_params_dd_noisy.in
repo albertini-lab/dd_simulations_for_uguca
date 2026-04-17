@@ -1,0 +1,62 @@
+# --- Input File for Data-Driven Simulation with Deviated Parameters and Noisy Data ---
+
+# Simulation name (used for regular output of this run)
+sim_name = time_int_opt_deviated_dd_noisy_scenario
+
+# --- Geometry and Discretization ---
+length = 1.
+nb_elements = 1024
+
+# --- Loading ---
+shear_load = 2e6
+normal_load = 1e6
+
+# --- Material Properties (Perturbed Values) ---
+material top [
+  E = 7e9  
+  nu = 0.33
+  rho = 2000
+]
+material bot [
+  E = 5e9  
+  nu = 0.25
+  rho = 1200
+]
+
+# --- Interface Properties (Perturbed Values) ---
+interface cohesion [
+  tauc = 3.15e6 # Perturbed from reference value of 3.5e6
+  dc = 2.2e-5   # Perturbed from reference value of 2e-5
+]
+
+# --- Nucleation ---
+a0 = 0.05
+
+# --- Time Integration ---
+duration = 2.6e-4
+tsf = 0.2
+data_driven_update_interval = 40
+
+# --- Output ---
+dump_fields = top_disp,bot_disp
+nb_dumps = 1
+
+# --- Restart Configuration ---
+restart_name = time_int_opt_deviated_dd_noisy_scenario
+nb_restarts = 1
+
+# --- Ground Truth Mode ---
+ground_truth_solution_generation = false
+enable_data_driven_mode = true
+
+# --- Parameters for Data-Driven Mode ---
+# Path to the directory containing the .info file
+ground_truth_data_path = noisy_gt_data_input
+
+# Base name for the ground truth data files
+ground_truth_data_name = noisy_gt_data_input
+
+# Data-driven tuning parameters
+w_factor_constant = 1e-2
+noise_stddev_sim = 1e-6 # Model's assumption of noise in data
+

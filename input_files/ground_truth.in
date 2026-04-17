@@ -1,0 +1,51 @@
+# --- Input File for Ground Truth Generation ---
+# Parameters aligned with fracture_2d_example.in
+
+# Simulation name (used for regular output and base for GT directory)
+sim_name = time_int_opt_gt
+
+# --- Geometry and Discretization ---
+length = 1.
+nb_elements = 1024
+
+# --- Loading ---
+shear_load = 2e6
+normal_load = 1e6
+
+# --- Material Properties ---
+material top [
+  E = 7e9
+  nu = 0.33
+  rho = 2000
+]
+material bot [
+  E = 5e9
+  nu = 0.25
+  rho = 1200
+]
+
+# --- Interface Properties ---
+interface cohesion [
+  tauc = 3.5e6
+  dc = 2e-5
+]
+
+# --- Nucleation ---
+a0 = 0.05
+
+# --- Time Integration ---
+duration = 2.6e-4
+tsf = 0.2 # time step factor
+# step_advances = 1
+
+# --- Output ---
+dump_fields = top_disp,bot_disp
+nb_dumps = 1
+
+# --- Restart Base Name ---
+restart_name = time_int_opt_gt
+nb_restarts = 1
+
+# --- Ground Truth Mode ---
+# Set to true to generate displacement data at every step
+ground_truth_solution_generation = true

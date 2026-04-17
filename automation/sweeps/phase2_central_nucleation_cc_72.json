@@ -1,0 +1,61 @@
+{
+  "meta": {
+    "sweep_name": "phase2_central_nucleation_cc_72",
+    "mode": "all",
+    "max_total_runs": 72,
+    "confirm_before_run": false,
+    "quiet_solver_output": true,
+    "ranking_mode": "translation_aligned"
+  },
+  "paths": {
+    "work_dir": "/Users/joshmcneely/uguca/build/simulations",
+    "solver_exec": "./dd_earthquake",
+    "template_input": "/Users/joshmcneely/uguca/simulations/input_files/local_baseline_compare_nu019.in",
+    "output_root": "./sweep_outputs/phase2_central_nucleation_cc_72",
+    "plot_script": "./automation/plotting/Plot_BaselineExp_Spacetime.py",
+    "rmse_script": "./automation/ranking/compute_baseline_vs_exp_rmse.py",
+    "rmse_script_translation_aligned": "./automation/ranking/compute_baseline_vs_exp_rmse_translation_aligned.py"
+  },
+  "analysis": {
+    "enable_plot": true,
+    "enable_rmse": true,
+    "enable_translated_plot": true,
+    "exp_restart_dir": "/Users/joshmcneely/introsims/simulation_outputs/interface-restart",
+    "roi_min": 0.0,
+    "roi_max": 3.05
+  },
+  "vary": [
+    {
+      "name": "nuc_center",
+      "spacing": "linear",
+      "mode": "absolute",
+      "min": 1.45,
+      "max": 1.55,
+      "count": 6
+    },
+    {
+      "name": "nuc_size",
+      "spacing": "linear",
+      "mode": "absolute",
+      "min": 0.05,
+      "max": 0.08,
+      "count": 4
+    },
+    {
+      "name": "nuc_dtau",
+      "spacing": "linear",
+      "mode": "absolute",
+      "min": 1200000,
+      "max": 1600000,
+      "count": 3
+    }
+  ],
+  "fixed": {
+    "asperity": "False",
+    "Dc": 1.6e-06,
+    "asp_center": 1.76,
+    "asp_fct": 2.0,
+    "asp_size": 0.30,
+    "nuc_time": 0.0025
+  }
+}

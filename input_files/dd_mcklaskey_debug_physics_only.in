@@ -1,0 +1,59 @@
+
+simulation_name = dd_mcklaskey_debug_physics_only
+dump_folder     = simulation_outputs/
+
+# --- DEBUG GEOMETRY (Medium resolution) ---
+# 2x coarser than HPC, but should still nucleate
+length      = 6.0
+nb_elements = 1024
+free_surface = False
+
+# --- TIME (Match GT data: 60ms) ---
+duration = 0.015
+time_step_factor = 0.1
+nb_predictor_corrector = 2
+
+# material
+E   = 46000000000.0
+nu  = 0.25
+rho = 2670.0
+
+# load (Working HPC values)
+shear_load  = 5800000.0
+normal_load = -10000000.0
+
+# nucleation (Stronger for medium mesh)
+nuc_center    = 0.65
+nuc_size      = 0.3
+nuc_time      = 0.005
+nuc_dtau      = 8000000.0
+
+# asperity (Working HPC parameters)
+asperity     = True
+asp_center = 1.15
+asp_fct    = 1.5
+asp_size   = 0.4
+box_car_shape = False
+
+# output
+dump_interval = 1e-06
+dump_fields = top_disp,top_velo,cohesion
+# nb_dumps = 20000  # Let dump_interval control frequency
+nb_restarts = 1
+
+# Disable auto-stop to run full duration
+auto_stop_on_slip = False
+slip_threshold = 1e-8
+
+# --- DATA-DRIVEN CONFIGURATION (DISABLED) ---
+enable_data_driven_mode = False
+
+# interface law
+Law     = RateAndState
+a       = 0.011
+b       = 0.013
+Dc      = 1e-06
+V0      = 1e-06
+f0      = 0.6
+V_init  = 1e-12
+evolution_law = Slip

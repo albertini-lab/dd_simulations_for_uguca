@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "sweep_name": "focused_barrier_joint_200",
+    "mode": "all",
+    "max_total_runs": 250,
+    "confirm_before_run": true,
+    "quiet_solver_output": true
+  },
+  "paths": {
+    "work_dir": "/Users/joshmcneely/uguca/build/simulations",
+    "solver_exec": "./dd_earthquake",
+    "template_input": "/Users/joshmcneely/uguca/simulations/input_files/local_baseline_compare_nu019.in",
+    "output_root": "./sweep_outputs/focused_barrier_joint_200",
+    "plot_script": "./automation/plotting/Plot_BaselineExp_Spacetime.py",
+    "rmse_script": "./automation/ranking/compute_baseline_vs_exp_rmse.py"
+  },
+  "analysis": {
+    "enable_plot": true,
+    "enable_rmse": true,
+    "exp_restart_dir": "/Users/joshmcneely/introsims/simulation_outputs/interface-restart",
+    "roi_min": 0.0,
+    "roi_max": 3.05
+  },
+  "vary": [
+    {
+      "name": "asp_center",
+      "spacing": "linear",
+      "mode": "absolute",
+      "min": 1.12,
+      "max": 1.58,
+      "count": 5
+    },
+    {
+      "name": "asp_fct",
+      "spacing": "linear",
+      "mode": "absolute",
+      "min": 1.2,
+      "max": 2.6,
+      "count": 5
+    },
+    {
+      "name": "asp_size",
+      "spacing": "linear",
+      "mode": "absolute",
+      "min": 0.14,
+      "max": 0.50,
+      "count": 4
+    },
+    {
+      "name": "Dc",
+      "spacing": "linear",
+      "mode": "absolute",
+      "min": 1.52e-06,
+      "max": 1.64e-06,
+      "count": 2
+    }
+  ],
+  "fixed": {
+    "asperity": "True",
+    "nuc_center": 0.955,
+    "nuc_dtau": 1421818.18181,
+    "nuc_size": 0.06
+  }
+}

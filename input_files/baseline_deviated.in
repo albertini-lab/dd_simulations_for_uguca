@@ -1,0 +1,49 @@
+# --- Input File for Baseline Deviated Parameters Simulation (No Data-Driven) ---
+
+# Simulation name (used for regular output of this run)
+sim_name = time_int_opt_baseline_deviated
+
+# --- Geometry and Discretization ---
+length = 1.
+nb_elements = 1024
+
+# --- Loading ---
+shear_load = 2e6
+normal_load = 1e6
+
+# --- Material Properties ---
+material top [
+  E = 7e9  
+  nu = 0.33
+  rho = 2000
+]
+material bot [
+  E = 5e9  
+  nu = 0.25 
+  rho = 1200
+]
+
+# --- Interface Properties (Perturbed Values) ---
+interface cohesion [
+  tauc = 3.15e6 # Perturbed from reference value of 3.5e6
+  dc = 2.2e-5   # Perturbed from reference value of 2e-5
+]
+
+# --- Nucleation ---
+a0 = 0.05
+
+# --- Time Integration ---
+duration = 2.6e-4
+tsf = 0.2
+
+# --- Output ---
+dump_fields = top_disp,bot_disp
+nb_dumps = 0
+
+# --- Restart Configuration ---
+restart_name = time_int_opt_baseline_deviated
+nb_restarts = 0
+
+# --- Ground Truth Mode ---
+ground_truth_solution_generation = false
+enable_data_driven_mode = false
