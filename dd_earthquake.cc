@@ -12,8 +12,11 @@
 #include <vector>
 #include <sstream>
 #include <iomanip>
-#include <optional>   
-#include <stdexcept>  
+#include <optional>
+#include <stdexcept>
+#include <memory>
+#include <utility>
+#include <cctype>
 
 #include "static_communicator_mpi.hh"
 #include "uca_parameter_reader.hh"
@@ -30,6 +33,25 @@
 namespace fs = std::filesystem;
 using namespace uguca;
 
+/* ------------------------------------------------------------------------ */
+std::vector<std::string> &split(const std::string &s,
+                                                                char delim,
+                                                                std::vector<std::string> &elems) {
+    std::stringstream ss(s);
+    std::string item;
+    while (std::getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+    return elems;
+}
+
+std::vector<std::string> split(const std::string &s, char delim) {
+    std::vector<std::string> elems;
+    split(s, delim, elems);
+    return elems;
+}
+/* ------------------------------------------------------------------------ */
+
 int main(int argc, char* argv[]) {
   StaticCommunicatorMPI* comm = StaticCommunicatorMPI::getInstance();
   int world_rank = comm->whoAmI();
@@ -38,8 +60,9 @@ int main(int argc, char* argv[]) {
     if (world_rank == 0) std::cerr << "Usage: ./dd_earthquake <input_file>\n";
     return 1;
   }
-  
-  if (world_rank == 0) std::cout << "\n========== [DEBUG] UGUCA DD INITIALISATION ==========\n";
+
+    if (world_rank == 0)
+        std::cout << "simulation_code = weak-interface" << std::endl;
   
   ParameterReader data;
   data.readInputFile(argv[1]);
@@ -49,6 +72,18 @@ int main(int argc, char* argv[]) {
   std::string simulation_name = data.get<std::string>("simulation_name");
   std::string dump_folder = data.get<std::string>("dump_folder");
   if (!dump_folder.empty() && dump_folder.back() != '/') dump_folder += "/";
+
+    if (world_rank == 0)
+        std::cout << "output_folder = " << dump_folder << std::endl;
+
+    if (world_rank == 0) {
+        fs::create_directories(dump_folder);
+        std::ifstream src_ifile(argv[1], std::ios::binary);
+        std::ofstream dst_ifile(dump_folder + simulation_name + ".in", std::ios::binary);
+        dst_ifile << src_ifile.rdbuf();
+        src_ifile.close();
+        dst_ifile.close();
+    }
 
   double length_x = data.get<double>("length");
   int nb_elements = data.get<int>("nb_elements");
@@ -146,27 +181,153 @@ int main(int argc, char* argv[]) {
 
   int nb_steps = std::ceil(duration / time_step);
   int s_dump = (dump_interval > 0.0) ? std::ceil(dump_interval / time_step) : std::max(1, nb_steps / 100);
-  
-  if (world_rank == 0) {
-      std::cout << "[DEBUG] Total Simulation Steps = " << nb_steps << "\n";
-      std::cout << "\n========== [DEBUG] EXECUTING MAIN LOOP ==========\n";
-  }
 
-  fs::create_directories(dump_folder);
-  interface.initDump(simulation_name + "-interface", dump_folder, Dumper::Format::ASCII);
-  std::stringstream ss(data.get<std::string>("dump_fields"));
-  std::string field;
-  while (std::getline(ss, field, ',')) interface.registerDumpField(field);
-  interface.dump(0, 0);
+    if (world_rank == 0) {
+        std::cout << "dump int = " << dump_interval << std::endl;
+    }
+
+    std::string dumper_bname = simulation_name;
+    std::string bname_sep = "-";
+    std::string dumper_group_interface = "interface";
+
+    // Banner lines consumed by postprocess.py -- also mirrored into a .progress
+    // file in the dump folder so the reader does not depend on stdout capture.
+    std::ostringstream banner;
+    banner << "simulation_code = weak-interface" << "\n"
+           << "output_folder = " << dump_folder << "\n"
+           << "dumper_bname = " << dumper_bname << "\n"
+           << "bname_sep = " << bname_sep << "\n"
+           << "dumper_group = " << dumper_group_interface << "\n"
+           << "time_step = " << time_step << "\n"
+           << "nb_time_steps = " << nb_steps << "\n"
+           << "dump_interval = " << dump_interval << "\n";
+
+    if (world_rank == 0) {
+        std::cout << banner.str();
+        std::ofstream progress_file(dump_folder + simulation_name + ".progress");
+        progress_file << banner.str();
+        progress_file.close();
+    }
+
+    interface.initDump(dumper_bname + bname_sep + dumper_group_interface,
+                                         dump_folder,
+                                         Dumper::Format::Binary);
+
+    // --------------------------------------------------------------------
+    // Dump-field registration
+    //
+    // The ifasha/ppscripts reader expects per-component dump files named
+    // e.g. top_disp_0.out / top_disp_1.out -- the FieldCollectionWeakInterface
+    // loader splits the field name on '_' and maps the trailing integer to
+    // the component index. The new uguca API registers each NodalField as a
+    // single multi-component file (e.g. top_disp.out with 2N floats/step),
+    // which the reader would otherwise store as FieldId('top_disp') with no
+    // component, breaking every downstream ppscript.
+    //
+    // To preserve the old layout without touching the uguca library we keep a
+    // single-component "shadow" NodalField per (source field, component) pair.
+    // The shadows are registered directly with the interface's inherited
+    // Dumper::registerIO, so each one produces its own file. Immediately
+    // before interface.dump() we copy the relevant component from the source
+    // field into its shadow.
+    //
+    // Accepted dump_fields entries (comma separated):
+    //   top_disp, top_velo, top_internal, top_residual, cohesion, load
+    //     -> expands to name_0, name_1 using the source field's components
+    //   top_disp_0, top_disp_1, cohesion_0, ...
+    //     -> single per-component shadow (matches rs_sw_comparison usage)
+    // --------------------------------------------------------------------
+    auto resolve_source = [&](const std::string& base) -> NodalField* {
+        if (base == "top_disp")     return &interface.getTop().getDisp();
+        if (base == "top_velo")     return &interface.getTop().getVelo();
+        if (base == "top_internal") return &interface.getTop().getInternal();
+        if (base == "top_residual") return &interface.getTop().getResidual();
+        if (base == "cohesion")     return &interface.getCohesion();
+        if (base == "load")         return &interface.getLoad();
+        return nullptr;
+    };
+
+    struct ShadowEntry {
+        NodalField* source;
+        int component;
+        std::unique_ptr<NodalField> shadow;
+    };
+    std::vector<ShadowEntry> shadows;
+
+    auto register_shadow = [&](const std::string& dump_name,
+                               NodalField* source, int component) {
+        auto shadow = std::make_unique<NodalField>(mesh, SpatialDirectionSet{_x}, dump_name);
+        interface.registerIO(dump_name, *shadow);
+        shadows.push_back({source, component, std::move(shadow)});
+    };
+
+    std::string dump_fields = data.get<std::string>("dump_fields");
+    std::vector<std::string> dump_fields_sep = split(dump_fields, ',');
+    for (std::string entry : dump_fields_sep) {
+        // trim whitespace
+        while (!entry.empty() && std::isspace(static_cast<unsigned char>(entry.front()))) entry.erase(entry.begin());
+        while (!entry.empty() && std::isspace(static_cast<unsigned char>(entry.back())))  entry.pop_back();
+        if (entry.empty()) continue;
+
+        // check for explicit _<digit> suffix
+        NodalField* src = nullptr;
+        int explicit_comp = -1;
+        std::size_t pos = entry.rfind('_');
+        if (pos != std::string::npos && pos + 1 < entry.size()) {
+            const std::string tail = entry.substr(pos + 1);
+            if (tail.size() == 1 && std::isdigit(static_cast<unsigned char>(tail[0]))) {
+                NodalField* candidate = resolve_source(entry.substr(0, pos));
+                if (candidate) {
+                    int c = tail[0] - '0';
+                    if (candidate->getComponents().count(c)) {
+                        src = candidate;
+                        explicit_comp = c;
+                    }
+                }
+            }
+        }
+
+        if (src) {
+            register_shadow(entry, src, explicit_comp);
+            continue;
+        }
+
+        // no explicit suffix: auto-expand to one shadow per component
+        NodalField* multi = resolve_source(entry);
+        if (multi) {
+            for (int c : multi->getComponents()) {
+                register_shadow(entry + "_" + std::to_string(c), multi, c);
+            }
+        } else if (world_rank == 0) {
+            std::cerr << "warning: unknown dump field '" << entry << "'\n";
+        }
+    }
+
+    auto sync_shadows = [&]() {
+        const int nb_nodes = mesh.getNbLocalNodes();
+        for (auto& s : shadows) {
+            const double* src_data = s.source->data(s.component);
+            double* dst_data = s.shadow->data(_x);
+            for (int i = 0; i < nb_nodes; ++i) dst_data[i] = src_data[i];
+        }
+    };
+
+    sync_shadows();
+    interface.dump(0, 0);
 
   const TwoDVector& coords = mesh.getLocalCoords();
 
   for (int s = 1; s <= nb_steps; ++s) {
     double t = time_step * s;
+
+        if (world_rank == 0) {
+            std::cout << "s=" << s << "/" << nb_steps << "\r";
+            std::cout.flush();
+        }
     
     for (int i = 0; i < mesh.getNbLocalNodes(); ++i) {
-            double x = std::abs(coords(i, _x) - nuc_center);
-            double r = std::sqrt(x * x);
+    double x = std::abs(coords(i, _x) - nuc_center);
+    double r = x;
       double perturb = 0.0;
       if (r < R) perturb = std::exp(r * r / (r * r - R * R));
       double G = 1.0;
@@ -192,19 +353,10 @@ int main(int argc, char* argv[]) {
             try {
                 loader->load(s);
                 physics_only = false;
-                
-                double active_nodes = 0.0;
+
                 for (int i = 0; i < loaded_weights.getNbNodes(); ++i) {
                     top_w_f(i, _x) = loaded_weights(i, _x) * w_f_val;
                     top_w_f(i, _y) = loaded_weights(i, _y) * w_f_val;
-                    if (loaded_weights(i, _x) > 0.0) active_nodes++;
-                }
-                
-                if (world_rank == 0) {
-                    std::cout << "\n[========================================================]\n";
-                    std::cout << "[SUCCESS-DD] Step " << s << "/" << nb_steps << " | Data File Found and Loaded!\n";
-                    std::cout << "[SUCCESS-DD] Applying w=" << w_f_val << " to " << active_nodes << " active nodes.\n";
-                    std::cout << "[========================================================]\n\n";
                 }
 
                 interface.getTop().computeDisplacementWithData(top_u_data, top_w_f, n_var, false, 1);
@@ -222,20 +374,16 @@ int main(int argc, char* argv[]) {
     
     if (physics_only) interface.advanceTimeStep();
 
-    if (s % s_dump == 0) {
-        interface.dump(s, t);
-        if (world_rank == 0) {
-            double max_u = 0.0, max_v = 0.0;
-            for (int i = 0; i < mesh.getNbLocalNodes(); ++i) {
-                max_u = std::max(max_u, std::abs(interface.getTop().getDisp()(i, _x)));
-                max_v = std::max(max_v, std::abs(interface.getTop().getVelo()(i, _x)));
-            }
-            std::cout << "[DEBUG-PHYS] Step " << s << "/" << nb_steps << " | max(|u|) = " << max_u << " m | max(|v|) = " << max_v << " m/s | PC=" << nb_pc << "\n";
+        if (world_rank == 0 && s % s_dump == 0) {
+            sync_shadows();
+            interface.dump(s, t);
         }
-    }
   }
-  
-  if (world_rank == 0) std::cout << "\n========== [DEBUG] RUN COMPLETED SUCCESSFULLY ==========\n";
+
   StaticCommunicatorMPI::getInstance()->finalize();
+
+    if (world_rank == 0)
+        std::cout << "weak-interface simulation completed." << std::endl;
+
   return 0;
 }
