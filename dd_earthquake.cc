@@ -14,8 +14,6 @@
 #include <iomanip>
 #include <optional>
 #include <stdexcept>
-#include <memory>
-#include <utility>
 #include <cctype>
 
 #include "static_communicator_mpi.hh"
@@ -62,7 +60,7 @@ int main(int argc, char* argv[]) {
   }
 
     if (world_rank == 0)
-        std::cout << "simulation_code = weak-interface" << std::endl;
+        std::cout << "simulation_code = Frictional Slip with Data- Driven Option" << std::endl;
   
   ParameterReader data;
   data.readInputFile(argv[1]);
@@ -165,7 +163,7 @@ int main(int argc, char* argv[]) {
   NodalField shear_load_init(mesh, {_x,_y});
   for (int i = 0; i < mesh.getNbLocalNodes(); ++i) shear_load_init(i, _x) = interface.getLoad()(i, _x);
 
-  bool dd_active = data.getOrUse<bool>("enable_data_driven_mode", false);
+    bool dd_active = data.getOrUse<bool>("enable_data_driven_mode", false);
   NodalField top_u_data(mesh, {_x, _y}), top_w_f(mesh, {_x, _y}), loaded_weights(mesh, {_x, _y});
   std::optional<Restart> loader;
   double w_f_val = 0.0, n_var = 0.0;
@@ -182,6 +180,9 @@ int main(int argc, char* argv[]) {
           loader->registerIO("top_disp", top_u_data); 
           loader->registerIO("top_w_factor", loaded_weights);
       } catch (...) {
+          if (world_rank == 0) {
+              std::cerr << "warning: restart loader initialization failed; data-driven mode disabled" << std::endl;
+          }
           dd_active = false;
       }
   }
@@ -218,31 +219,6 @@ int main(int argc, char* argv[]) {
                                          dump_folder,
                                          Dumper::Format::Binary);
 
-
-    auto resolve_source = [&](const std::string& base) -> NodalField* {
-        if (base == "top_disp")     return &interface.getTop().getDisp();
-        if (base == "top_velo")     return &interface.getTop().getVelo();
-        if (base == "top_internal") return &interface.getTop().getInternal();
-        if (base == "top_residual") return &interface.getTop().getResidual();
-        if (base == "cohesion")     return &interface.getCohesion();
-        if (base == "load")         return &interface.getLoad();
-        return nullptr;
-    };
-
-    struct ShadowEntry {
-        NodalField* source;
-        int component;
-        std::unique_ptr<NodalField> shadow;
-    };
-    std::vector<ShadowEntry> shadows;
-
-    auto register_shadow = [&](const std::string& dump_name,
-                               NodalField* source, int component) {
-        auto shadow = std::make_unique<NodalField>(mesh, SpatialDirectionSet{_x}, dump_name);
-        interface.registerIO(dump_name, *shadow);
-        shadows.push_back({source, component, std::move(shadow)});
-    };
-
     std::string dump_fields = data.get<std::string>("dump_fields");
     std::vector<std::string> dump_fields_sep = split(dump_fields, ',');
     for (std::string entry : dump_fields_sep) {
@@ -251,50 +227,8 @@ int main(int argc, char* argv[]) {
         while (!entry.empty() && std::isspace(static_cast<unsigned char>(entry.back())))  entry.pop_back();
         if (entry.empty()) continue;
 
-        // check for explicit _<digit> suffix
-        NodalField* src = nullptr;
-        int explicit_comp = -1;
-        std::size_t pos = entry.rfind('_');
-        if (pos != std::string::npos && pos + 1 < entry.size()) {
-            const std::string tail = entry.substr(pos + 1);
-            if (tail.size() == 1 && std::isdigit(static_cast<unsigned char>(tail[0]))) {
-                NodalField* candidate = resolve_source(entry.substr(0, pos));
-                if (candidate) {
-                    int c = tail[0] - '0';
-                    if (candidate->getComponents().count(c)) {
-                        src = candidate;
-                        explicit_comp = c;
-                    }
-                }
-            }
-        }
-
-        if (src) {
-            register_shadow(entry, src, explicit_comp);
-            continue;
-        }
-
-        // no explicit suffix: auto-expand to one shadow per component
-        NodalField* multi = resolve_source(entry);
-        if (multi) {
-            for (int c : multi->getComponents()) {
-                register_shadow(entry + "_" + std::to_string(c), multi, c);
-            }
-        } else if (world_rank == 0) {
-            std::cerr << "warning: unknown dump field '" << entry << "'\n";
-        }
+        interface.registerDumpField(entry);
     }
-
-    auto sync_shadows = [&]() {
-        const int nb_nodes = mesh.getNbLocalNodes();
-        for (auto& s : shadows) {
-            const double* src_data = s.source->data(s.component);
-            double* dst_data = s.shadow->data(_x);
-            for (int i = 0; i < nb_nodes; ++i) dst_data[i] = src_data[i];
-        }
-    };
-
-    sync_shadows();
     interface.dump(0, 0);
 
   const TwoDVector& coords = mesh.getLocalCoords();
@@ -328,43 +262,37 @@ int main(int argc, char* argv[]) {
 
     bool physics_only = true;
     if (dd_active && s % data.getOrUse<int>("data_driven_update_interval", 1) == 0) {
-        
-        std::string expected_file = gt_path + "/" + gt_name + "-restart/top_w_factor.proc0.s" + std::to_string(s) + ".out";
-        
-        if (fs::exists(expected_file)) {
-            try {
-                loader->load(s);
-                physics_only = false;
+        try {
+            loader->load(s);
+            physics_only = false;
 
-                for (int i = 0; i < loaded_weights.getNbNodes(); ++i) {
-                    top_w_f(i, _x) = loaded_weights(i, _x) * w_f_val;
-                    top_w_f(i, _y) = loaded_weights(i, _y) * w_f_val; 
-                }
-
-                interface.getTop().computeDisplacementWithData(top_u_data, top_w_f, n_var, false, 1);
-                interface.computeInternal(false, false, _dynamic, 1);
-                interface.computeCohesion(false, 1);
-                interface.computeResidual();
-                interface.computeVelocity();
-            } catch (...) { 
-                physics_only = true; 
+            for (int i = 0; i < loaded_weights.getNbNodes(); ++i) {
+                top_w_f(i, _x) = loaded_weights(i, _x) * w_f_val;
+                top_w_f(i, _y) = loaded_weights(i, _y) * w_f_val;
             }
-        } else {
+
+            interface.getTop().computeDisplacementWithData(top_u_data, top_w_f, n_var, false, 1);
+            interface.computeInternal(false, false, _dynamic, 1);
+            interface.computeCohesion(false, 1);
+            interface.computeResidual();
+            interface.computeVelocity();
+        } catch (...) {
             physics_only = true;
         }
     } 
     
-    if (physics_only) interface.advanceTimeStep();
+    if (physics_only) {
+        interface.advanceTimeStep();
+    }
 
         if (world_rank == 0 && s % s_dump == 0) {
-            sync_shadows();
             interface.dump(s, t);
         }
   }
 
   StaticCommunicatorMPI::getInstance()->finalize();
 
-    if (world_rank == 0)
+        if (world_rank == 0)
         std::cout << "weak-interface simulation completed." << std::endl;
 
   return 0;
