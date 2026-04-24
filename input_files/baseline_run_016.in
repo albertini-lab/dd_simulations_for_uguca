@@ -1,0 +1,53 @@
+simulation_name = baseline_run_016
+dump_folder     = ./simulation_outputs
+
+# geometry
+length      = 6.0
+nb_elements = 512
+free_surface = False
+
+# time
+duration = 0.005
+time_step_factor = 0.1
+nb_predictor_corrector = 2
+
+# material
+E   = 46000000000.0
+nu  = 0.25
+rho = 2670.0
+
+# load
+#shear_load  = 5622448.97959
+#normal_load = 10000000.0
+shear_load  = 5800000.0
+normal_load = -10000000.0
+
+# nucleation
+nuc_center = 3.0
+nuc_size   = 0.15
+nuc_time   = 0.0025
+nuc_dtau   = 2000000.0
+
+# asperity
+asperity = False
+
+
+
+# output
+dump_interval = 1e-06
+dump_fields   = top_disp,top_velo,cohesion,load,top_internal,top_residual
+
+# interface law
+Law          = RateAndState
+a            = 0.011
+b            = 0.014
+Dc           = 1e-06
+V0           = 1e-06
+f0           = 0.6
+V_init       = 1e-12
+evolution_law = Slip
+
+#Law   = SlipWeakening
+#tau_p = 6000000.0   # Peak shear strength 
+#tau_r = 5500000.0   # Residual shear strength 
+#d_c   = 5e-05       # Characteristic slip distance 

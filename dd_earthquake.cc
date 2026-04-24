@@ -120,6 +120,13 @@ int main(int argc, char* argv[]) {
       std::string ev_str = data.get<std::string>("evolution_law");
       RateAndStateLaw::EvolutionLaw ev_law = (ev_str == "Slip") ? RateAndStateLaw::EvolutionLaw::SlipLaw : RateAndStateLaw::EvolutionLaw::AgingLaw;
       law = new RateAndStateLaw(mesh, a, b, Dc, V0, f0, theta_init, ev_law, nb_pc > 0, 0.0);
+  } else if (law_name == "SlipWeakening") {
+      double tau_p = data.get<double>("tau_p");
+      double tau_r = data.get<double>("tau_r");
+      double d_c = data.get<double>("d_c");
+      law = new SlipWeakeningFrictionLaw(mesh, tau_p, tau_r, d_c, "swlaw");
+  } else {
+      throw std::runtime_error("Unknown or missing interface law: " + law_name);
   }
 
   UnimatShearInterface interface(mesh, {_x,_y}, mat, *law);
@@ -190,8 +197,6 @@ int main(int argc, char* argv[]) {
     std::string bname_sep = "-";
     std::string dumper_group_interface = "interface";
 
-    // Banner lines consumed by postprocess.py -- also mirrored into a .progress
-    // file in the dump folder so the reader does not depend on stdout capture.
     std::ostringstream banner;
     banner << "simulation_code = weak-interface" << "\n"
            << "output_folder = " << dump_folder << "\n"
@@ -213,30 +218,7 @@ int main(int argc, char* argv[]) {
                                          dump_folder,
                                          Dumper::Format::Binary);
 
-    // --------------------------------------------------------------------
-    // Dump-field registration
-    //
-    // The ifasha/ppscripts reader expects per-component dump files named
-    // e.g. top_disp_0.out / top_disp_1.out -- the FieldCollectionWeakInterface
-    // loader splits the field name on '_' and maps the trailing integer to
-    // the component index. The new uguca API registers each NodalField as a
-    // single multi-component file (e.g. top_disp.out with 2N floats/step),
-    // which the reader would otherwise store as FieldId('top_disp') with no
-    // component, breaking every downstream ppscript.
-    //
-    // To preserve the old layout without touching the uguca library we keep a
-    // single-component "shadow" NodalField per (source field, component) pair.
-    // The shadows are registered directly with the interface's inherited
-    // Dumper::registerIO, so each one produces its own file. Immediately
-    // before interface.dump() we copy the relevant component from the source
-    // field into its shadow.
-    //
-    // Accepted dump_fields entries (comma separated):
-    //   top_disp, top_velo, top_internal, top_residual, cohesion, load
-    //     -> expands to name_0, name_1 using the source field's components
-    //   top_disp_0, top_disp_1, cohesion_0, ...
-    //     -> single per-component shadow (matches rs_sw_comparison usage)
-    // --------------------------------------------------------------------
+
     auto resolve_source = [&](const std::string& base) -> NodalField* {
         if (base == "top_disp")     return &interface.getTop().getDisp();
         if (base == "top_velo")     return &interface.getTop().getVelo();
@@ -356,7 +338,7 @@ int main(int argc, char* argv[]) {
 
                 for (int i = 0; i < loaded_weights.getNbNodes(); ++i) {
                     top_w_f(i, _x) = loaded_weights(i, _x) * w_f_val;
-                    top_w_f(i, _y) = loaded_weights(i, _y) * w_f_val;
+                    top_w_f(i, _y) = loaded_weights(i, _y) * w_f_val; 
                 }
 
                 interface.getTop().computeDisplacementWithData(top_u_data, top_w_f, n_var, false, 1);
