@@ -25,7 +25,6 @@
 #include "uca_restart.hh"
 
 #include "rate_and_state_law.hh"
-#include "slip_weakening_friction_law.hh"
 #include "linear_shear_cohesive_law.hh"
 
 namespace fs = std::filesystem;
@@ -118,11 +117,11 @@ int main(int argc, char* argv[]) {
       std::string ev_str = data.get<std::string>("evolution_law");
       RateAndStateLaw::EvolutionLaw ev_law = (ev_str == "Slip") ? RateAndStateLaw::EvolutionLaw::SlipLaw : RateAndStateLaw::EvolutionLaw::AgingLaw;
       law = new RateAndStateLaw(mesh, a, b, Dc, V0, f0, theta_init, ev_law, nb_pc > 0, 0.0);
-  } else if (law_name == "SlipWeakening") {
-      double tau_p = data.get<double>("tau_p");
-      double tau_r = data.get<double>("tau_r");
-      double d_c = data.get<double>("d_c");
-      law = new SlipWeakeningFrictionLaw(mesh, tau_p, tau_r, d_c, "swlaw");
+  } else if (law_name == "LinearShearCohesive") {
+      double Gc = data.get<double>("Gc");
+      double tau_c = data.get<double>("tau_c");
+      double tau_c_res = data.get<double>("tau_c_res");
+      law = new LinearShearCohesiveLaw(mesh, Gc, tau_c, tau_c_res, "lsc_law");
   } else {
       throw std::runtime_error("Unknown or missing interface law: " + law_name);
   }
